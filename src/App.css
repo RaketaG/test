@@ -1,0 +1,22 @@
+#root {
+  max-width: 1280px;
+  min-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+  background-color: antiquewhite;
+}
+
+.infoContainer {
+  display: flex;
+}
+
+.infoKey {
+  flex: 1;
+  text-align: left;
+}
+
+.infoValue {
+  flex: 4;
+  text-align: left;
+}
