@@ -38,8 +38,7 @@ function App() {
           setIsLoading(false);
         })
         .catch((error) => {
-          error.name === 'AbortError' ? console.log("Gocha") : 
-          alert(error);
+          error.name !== 'AbortError' && alert(error);
           setIsLoading(false);
         });
     }
