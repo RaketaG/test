@@ -1,74 +1,82 @@
-/* TASK
-  1. At the top add a button named "Generate Random Product".
-  2. Clicking button should call API https://fakestoreapi.com/products/{product_id}. {product_id} should be randomly generated number between 1 and 20. Fetch the randomly generated product and save it in state.
-  3. Display on screen all the information about product.
-*/
-
-import { useState, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 
+const FAKESTORE_STORAGE_KEY = 'productDescriptionCache'
+
+const loadSessionStorage = () => JSON.parse(sessionStorage.getItem(FAKESTORE_STORAGE_KEY)) || {};
+const saveSessionStorage = (sessionCacheData) => {
+    sessionStorage.setItem(FAKESTORE_STORAGE_KEY, JSON.stringify(sessionCacheData));
+};
+
+const cacheData = loadSessionStorage();
+
 function App() {
-  const cacheData = useRef({});
-  const abortController = useRef(null);
-  const [productData, setProductData] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
+    const [productData, setProductData] = useState({});
+    const [randomNumber, setRandomNumber] = useState();
+    const [isLoading, setIsLoading] = useState(false);
 
-  const randomProductGenerator = () => {
-    const randomNumber = Math.floor(Math.random() * 20) + 1;
+    const randomNumberGenerator = () => setRandomNumber(Math.floor(Math.random() * 20) + 1);
 
-    if (randomNumber in cacheData.current) {
-      setProductData(cacheData.current[randomNumber]);
-    } else {
-      abortController.current && abortController.current.abort();
+    useEffect(() => {
+        const abortController = new AbortController();
 
-      abortController.current = new AbortController();
+        const randomProductGenerator = async () => {
+            if (randomNumber in cacheData) {
+                setProductData(cacheData[randomNumber]);
+            } else {
+                try {
+                    setIsLoading(true);
+                    const response = await fetch(
+                        `https://fakestoreapi.com/products/${randomNumber || Math.floor(Math.random() * 20) + 1}`,
+                        { signal: abortController.signal }
+                    );
+                    if (!response.ok) {
+                        throw new Error(`Something went wrong!\nHTTP: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    setProductData(data);
+                    cacheData[randomNumber] = data;
+                    saveSessionStorage(cacheData);
+                } catch (error) {
+                    error.name !== 'AbortError' && alert(error);
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        };
 
-      setIsLoading(true);
-      fetch(`https://fakestoreapi.com/products/${randomNumber}`, {
-        signal: abortController.current.signal
-      })
-        .then((response) => {
-          if (!response.ok)
-            throw new Error(`Something went wrong!\nHTTP: ${response.status}`);
-          return response.json();
-        })
-        .then((data) => {
-          setProductData(data);
-          cacheData.current[randomNumber] = data;
-          setIsLoading(false);
-        })
-        .catch((error) => {
-          error.name !== 'AbortError' && alert(error);
-          setIsLoading(false);
-        });
-    }
-  };
+        randomProductGenerator();
 
-  return (
-    <>
-      <button
-        onClick={randomProductGenerator}
-      >
-        Generate Random Product
-      </button>
+        return () => {
+            abortController.abort();
+        }
+    }, [randomNumber]);
 
-      {isLoading ?
-        <div className="spinner" /> :
-        Object.entries(productData).map(([key, value]) => (
-          <div key={key} className='infoContainer'>
-            <p className='infoKey'><strong>{key}: </strong></p>
-            <p className='infoValue'>
-              {(typeof value === "object" && value !== null)
-                ? Object.entries(value)
-                  .map(([key, val]) => `${key}: ${val}`)
-                  .join(" | ")
-                : value}
-            </p>
-          </div>
-        ))
-      }
-    </>
-  )
+    return (
+        <>
+            <button className='btnClass'
+                onClick={randomNumberGenerator}
+            >
+                Generate Random Product
+            </button>
+
+            {isLoading ?
+                <div className="spinner" /> :
+                Object.entries(productData).map(([key, value]) => (
+                    <div key={key} className='infoContainer'>
+                        <p className='infoKey'><strong>{key}: </strong></p>
+                        <p className='infoValue'>
+                            {(typeof value === "object" && value !== null)
+                                ? Object.entries(value)
+                                    .map(([key, val]) => `${key}: ${val}`)
+                                    .join(" | ")
+                                : value}
+                        </p>
+                    </div>
+                ))
+            }
+        </>
+    )
 }
 
 export default App
